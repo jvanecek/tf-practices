@@ -25,6 +25,9 @@ class RegressionPredictor:
     def train( self, normalized_training_data, training_labels, epochs, callbacks ):
         self._buildSequentialModel( len( normalized_training_data.keys() ) )
 
+        print("Start training")    
+        print(self._model.summary())
+
         return self._model.fit(
             normalized_training_data, 
             training_labels,
