@@ -29,7 +29,7 @@ class TestTensorflow(unittest.TestCase):
         y = W * x + b
 
         #initialize all variables defined
-        init = tf.global_variables_initializer()
+        init = tf.compat.v1.global_variables_initializer()
         #global_variable_initializer() will declare all the variable we have initilized
         # use with statement to instantiate and assign a session
         with tf.Session() as sess:
@@ -40,7 +40,7 @@ class TestTensorflow(unittest.TestCase):
     def testIncrementingOfVariableInOperation(self):
         number = tf.Variable(2)
         multiplier = tf.Variable(1)
-        init = tf.global_variables_initializer()
+        init = tf.compat.v1.global_variables_initializer()
         result = number.assign(tf.multiply(number,multiplier))
         with tf.Session() as sess:
             sess.run(init)
@@ -94,33 +94,59 @@ class TestTensorflow(unittest.TestCase):
                     for j in [0, 1]:
                         self.assertEqual( sess.run( dz_dx[i][j] ), 8.0 )
 
+    def _withPersistentTapeDo(self, anAssertion): 
+        with tf.GradientTape(persistent=True) as t:
+            anAssertion(t)
+        del t
+
     def testNestedGradients(self): 
         x = tf.constant(3.0)
-        with tf.GradientTape(persistent=True) as t:
+
+        def assertionTested(t):
             t.watch(x)
             y = x * x
             z = y * y
             dz_dx = t.gradient(z, x)  # 108.0 (4*x^3 at x = 3)
             dy_dx = t.gradient(y, x)  # 6.0
-
+            
             with tf.Session() as sess:
-                self.assertEqual( sess.run( dz_dx ), 108)
-                self.assertEqual( sess.run( dy_dx ), 6)
-        del t  # Drop the reference to the tape
+                self.assertEqual( sess.run( dz_dx ), 108 )
+                self.assertEqual( sess.run( dy_dx ), 6 )
+        
+        self._withPersistentTapeDo(assertionTested)
 
-    def testNestedGradientsFeedingOperation(self): 
+    
+    def testNestedGradientstFeedingOperations(self): 
+        x = tf.placeholder(tf.float32, name='x')
+        
+        def assertionTested(t):
+            t.watch(x)
+            y = x * x
+            z = y * y
+            dz_dx = t.gradient(z, x)  # 108.0 (4*x^3 at x = 3)
+            dy_dx = t.gradient(y, x)  # 6.0
+            
+            with tf.Session() as sess:
+                self.assertEqual( sess.run( dz_dx, feed_dict={x: [3,]} ), 108 )
+                self.assertEqual( sess.run( dy_dx, feed_dict={x: [3,]} ), 6 )
+        
+        self._withPersistentTapeDo(assertionTested)
+
+    def testGradientsAreUnavailableUsingPlaceholdersOfInt32(self): 
         x = tf.placeholder(tf.int32, name='x')
-        with tf.GradientTape(persistent=True) as t:
+        
+        def assertionTested(t):
             t.watch(x)
             y = x * x
             z = y * y
             dz_dx = t.gradient(z, x)  # 108.0 (4*x^3 at x = 3)
             dy_dx = t.gradient(y, x)  # 6.0
+            
+            # Using gradients with int32 fails quietly
+            self.assertEqual( dz_dx, None )
+            self.assertEqual( dy_dx, None )
 
-            with tf.Session() as sess:
-                self.assertListEqual(sess.run(dz_dx, feed_dict={x: [3]}).tolist(), [108])
-                self.assertListEqual(sess.run(dy_dx, feed_dict={x: [3]}).tolist(), [6])
-        del t  # Drop the reference to the tape
+        self._withPersistentTapeDo(assertionTested)
         
 if __name__ == '__main__':
     unittest.main()
