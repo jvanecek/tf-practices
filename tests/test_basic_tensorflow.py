@@ -79,6 +79,7 @@ class TestTensorflow(unittest.TestCase):
             self.assertListEqual(sess.run(y, feed_dict={x: [3,5]}).tolist(), [8,12])
         self.assertEqual( y.graph,  default_graph ) 
 
+    " Following examples based on https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/GradientTape "
     def testGradients(self):
         x = tf.ones((2, 2))
 
@@ -97,7 +98,7 @@ class TestTensorflow(unittest.TestCase):
     def _withPersistentTapeDo(self, anAssertion): 
         with tf.GradientTape(persistent=True) as t:
             anAssertion(t)
-        del t
+        del t # Drop the reference to the tape
 
     def testComputeMultipleGradientsOverSameComputation(self): 
         x = tf.constant(3.0)
@@ -113,7 +114,7 @@ class TestTensorflow(unittest.TestCase):
                 self.assertEqual( sess.run( dz_dx ), 108 )
                 self.assertEqual( sess.run( dy_dx ), 6 )
         
-        " To compute multiple gradients in same computation, need to be done on a persistent gradient tape"
+        " In order to compute multiple gradients in same computation, use a persistent gradient tape"
         self._withPersistentTapeDo(assertionTested)
 
     
