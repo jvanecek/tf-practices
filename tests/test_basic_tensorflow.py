@@ -99,7 +99,7 @@ class TestTensorflow(unittest.TestCase):
             anAssertion(t)
         del t
 
-    def testNestedGradients(self): 
+    def testComputeMultipleGradientsOverSameComputation(self): 
         x = tf.constant(3.0)
 
         def assertionTested(t):
@@ -113,10 +113,11 @@ class TestTensorflow(unittest.TestCase):
                 self.assertEqual( sess.run( dz_dx ), 108 )
                 self.assertEqual( sess.run( dy_dx ), 6 )
         
+        " To compute multiple gradients in same computation, need to be done on a persistent gradient tape"
         self._withPersistentTapeDo(assertionTested)
 
     
-    def testNestedGradientstFeedingOperations(self): 
+    def testComputeMultipleGradientsOverSameComputationFeedingOperations(self): 
         x = tf.placeholder(tf.float32, name='x')
         
         def assertionTested(t):
@@ -135,18 +136,43 @@ class TestTensorflow(unittest.TestCase):
     def testGradientsAreUnavailableUsingPlaceholdersOfInt32(self): 
         x = tf.placeholder(tf.int32, name='x')
         
-        def assertionTested(t):
+        with tf.GradientTape() as t:
             t.watch(x)
             y = x * x
             z = y * y
-            dz_dx = t.gradient(z, x)  # 108.0 (4*x^3 at x = 3)
-            dy_dx = t.gradient(y, x)  # 6.0
+            dz_dx = t.gradient(z, x) 
             
             # Using gradients with int32 fails quietly
             self.assertEqual( dz_dx, None )
-            self.assertEqual( dy_dx, None )
 
-        self._withPersistentTapeDo(assertionTested)
+    def testHighOrderDerivativesUsingNestedGradients(self): 
+        x = tf.constant(3.0)
+        with tf.GradientTape() as g:
+            g.watch(x)
+            with tf.GradientTape() as gg:
+                gg.watch(x)
+                y = x * x
+            dy_dx = gg.gradient(y, x)     # Will compute to 6.0
+        d2y_dx2 = g.gradient(dy_dx, x)  # Will compute to 2.0
+
+        with tf.Session() as sess:
+            self.assertEqual( sess.run( dy_dx ), 6.0)
+            self.assertEqual( sess.run( d2y_dx2 ), 2.0)
+    
+    def testHighOrderDerivativesUsingSingleGradientTape(self): 
+        x = tf.constant(3.0)
         
+        def assertionTested(t):
+            t.watch(x)
+            y = x * x
+            dy_dx = t.gradient(y, x)
+            d2y_dx2 = t.gradient(dy_dx, x)
+
+            with tf.Session() as sess:
+                self.assertEqual( sess.run( dy_dx ), 6.0)
+                self.assertEqual( sess.run( d2y_dx2 ), 2.0)
+        
+        self._withPersistentTapeDo(assertionTested)
+
 if __name__ == '__main__':
     unittest.main()
