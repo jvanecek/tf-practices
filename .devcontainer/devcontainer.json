@@ -3,5 +3,13 @@
         "dockerfile": "Dockerfile",
         "context": ".."
     },
-    "remoteUser": "nonroot"
+    "remoteUser": "nonroot",
+    "customizations": {
+        "vscode" : {
+            "extensions": [
+                "ms-python.python",
+                "ms-azuretools.vscode-docker"
+            ]
+        }
+    }
 }
