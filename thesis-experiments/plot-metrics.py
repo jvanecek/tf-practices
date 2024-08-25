@@ -49,25 +49,31 @@ def parse_record_file(file_name, value_decoder):
 
   return parsed_metrics
 
-def same_stage_plot(metrics_collected, metric_names, stage_name, save_path):
+def same_stage_plot(metrics_collected, metric_names, metric_labels, stage_name, save_path):
 
     markers = {
         'pharo' : 'x',
         'vast' : '+',
         'python' : 'o'
     }
-    x_values = range(0, 10)
+    epochs = 10
+    figure_size = (6, 6) if len(metric_names) < 2 else (12, 6)
+    columns_of_figures = 1 if len(metric_names) < 2 else 2
+    rows_in_figure = 1
+    plt.figure(figsize=figure_size)
 
-    plt.figure(figsize=(12, 6))
+    x_values = range(0, epochs)
 
     for metric_name in metric_names:
-        plt.subplot(1, 2, metric_names.index(metric_name) + 1)  # Create subplots side by side
+        metric_idx = metric_names.index(metric_name)
+        metric_label = metric_labels[metric_idx]
+        plt.subplot(rows_in_figure, columns_of_figures, metric_idx + 1)  # Create subplots side by side
         for platform in metrics_collected.keys():
             plt.plot(x_values, metrics_collected[platform][metric_name], label=platform, marker=markers[platform])
 
         plt.xlabel('epoch')
-        plt.ylabel(metric_name)
-        plt.title(f'{metric_name} during {stage_name}')
+        plt.ylabel(metric_label)
+        plt.title(f'{metric_label} during {stage_name}')
         plt.legend()
         plt.grid(True)
 
@@ -92,7 +98,7 @@ def parse_tensorboard_logs(logs_path):
     )
 
 
-experimentsPath = './logs/experiment-3'
+experimentsPath = './logs/experiment2'
 
 (
     pharo_train_metrics,
@@ -107,23 +113,27 @@ experimentsPath = './logs/experiment-3'
 same_stage_plot(
     metrics_collected={ 'pharo' : pharo_train_metrics, 'python' : python_train_metrics, 'vast' : vast_train_metrics },
     metric_names=['epoch_loss', 'epoch_sparse_categorical_accuracy'],
+    metric_labels=['loss', 'accuracy'],
     stage_name='training',
     save_path=experimentsPath+'/training-metrics.png')
 
 same_stage_plot(
     metrics_collected={ 'pharo' : pharo_train_metrics, 'python' : python_train_metrics, 'vast' : vast_train_metrics },
     metric_names=['time'],
+    metric_labels=['time (in secs)'],
     stage_name='training',
     save_path=experimentsPath+'/training-time.png')
 
 same_stage_plot(
     metrics_collected={ 'pharo' : pharo_val_metrics, 'python' : python_val_metrics, 'vast' : vast_val_metrics },
     metric_names=['epoch_loss', 'epoch_sparse_categorical_accuracy'],
+    metric_labels=['loss', 'accuracy'],
     stage_name='validation',
     save_path=experimentsPath+'/validation-metrics.png')
 
 same_stage_plot(
     metrics_collected={ 'pharo' : pharo_val_metrics, 'python' : python_val_metrics, 'vast' : vast_val_metrics },
     metric_names=['time'],
+    metric_labels=['time (in secs)'],
     stage_name='validation',
     save_path=experimentsPath+'/validation-time.png')
