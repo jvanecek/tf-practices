@@ -1,29 +1,36 @@
 import tensorflow as tf
-import numpy as np
-import matplotlib.pyplot as plt
-#https://www.geeksforgeeks.org/python-classifying-handwritten-digits-with-tensorflow/
-mnist = tf.keras.datasets.mnist
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
 
-draw(x_train[0])
+fashion_mnist = tf.keras.datasets.fashion_mnist
+(train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
 
-x_train = tf.keras.utils.normalize(x_train, axis=1)
-x_test = tf.keras.utils.normalize(x_test, axis=1)
+train_images = train_images / 255.0
+test_images = test_images / 255.0
 
-def draw(n):
-    plt.imshow(n, cmap=plt.cm.binary)
-    plt.show()
+model = Sequential([
+    Flatten(input_shape=(28, 28)),
+    Dense(128, activation='sigmoid'),
+    Dense(10)
+])
 
-draw(x_train[0])
+model.compile(optimizer=RMSprop(learning_rate=0.001),
+              loss=SparseCategoricalCrossentropy(from_logits=True),
+              metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
 
-model = tf.keras.models.Sequential()
-model.add(tf.keras.layers.Flatten(input_shape=(28, 28)))
-model.add(tf.keras.layers.Dense(128, activation=tf.nn.relu))
-model.add(tf.keras.layers.Dense(128, activation=tf.nn.relu))
-model.add(tf.keras.layers.Dense(10, activation=tf.nn.softmax))
+log_dir = "logs/experiment1/python"
+tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1, write_steps_per_second=True)
 
-model.compile(optimizer='adam',
-              loss='sparse_categorical_crossentropy',
-              metrics=['accuracy']
-              )
-model.fit(x_train, y_train, epochs=3)
+history = model.fit(
+    x=train_images,
+    y=train_labels,
+    epochs=10,
+    batch_size=32,
+    validation_data=(test_images, test_labels),
+    callbacks=[
+      tensorboard_callback
+    ]
+)
+

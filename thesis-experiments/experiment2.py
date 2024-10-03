@@ -1,5 +1,8 @@
 import tensorflow as tf
-from tensorflow import keras
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
 
 fashion_mnist = keras.datasets.fashion_mnist
 (train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
@@ -7,14 +10,14 @@ fashion_mnist = keras.datasets.fashion_mnist
 train_images = train_images / 255.0
 test_images = test_images / 255.0
 
-model = tf.keras.Sequential([
-    tf.keras.layers.Flatten(input_shape=(28, 28)),
-    tf.keras.layers.Dense(128, activation='relu'),
-    tf.keras.layers.Dense(10)
+model = Sequential([
+    Flatten(input_shape=(28, 28)),
+    Dense(128, activation='relu'),
+    Dense(10)
 ])
 
-model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
-              loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+model.compile(optimizer=Adam(learning_rate=0.001),
+              loss=SparseCategoricalCrossentropy(from_logits=True),
               metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
 
 log_dir = "logs/experiment-2/python"
