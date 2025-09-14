@@ -63,28 +63,6 @@ def parse_tensorboard_logs(logs_path):
     _parse_record_file(logs_path, 'python', 'validation', event_tensor_value_decoder)
   )
 
-experiments = [
-  { 'folder': './logs/2024-10-03-experiment1',  'name': 'Experiment 1', 'metrics': {} },
-  { 'folder': './logs/2024-08-25-experiment-2', 'name': 'Experiment 2', 'metrics': {} },
-  { 'folder': './logs/2024-06-11-experiment-3', 'name': 'Experiment 3', 'metrics': {} },
-]
-
-for experiment in experiments:
-  (
-    pharo_train_metrics,
-    pharo_val_metrics,
-    vast_train_metrics,
-    vast_val_metrics,
-    python_train_metrics,
-    python_val_metrics
-  ) = parse_tensorboard_logs(experiment['folder'])
-  
-  experiment['metrics'] = {
-    'pharo' : { 'train': pharo_train_metrics, 'validation': pharo_val_metrics },
-    'vast' : { 'train': vast_train_metrics, 'validation': vast_val_metrics },
-    'python' : { 'train': python_train_metrics, 'validation': python_val_metrics },
-  }
-
 markers = {
   'pharo': 'x',
   'vast': '+',
@@ -167,18 +145,18 @@ def plot_epoch_time(experiment, save_path=None):
       label=f"{platform}"
     )
 
-    plt.title(f"{experiment['name']} - Epoch duration")
-    plt.xlabel("Epoch")
-    plt.ylabel("Seconds")
-    plt.legend()
-    plt.grid(True, linestyle="--", alpha=0.7)
+  plt.title(f"{experiment['name']} - Epoch duration")
+  plt.xlabel("Epoch")
+  plt.ylabel("Seconds")
+  plt.legend()
+  plt.grid(True, linestyle="--", alpha=0.7)
 
-    plt.tight_layout()
-    if save_path: 
-      plt.savefig(f"{experiment['folder']}/{save_path}")
-      plt.close()
-    else:
-      plt.show()
+  plt.tight_layout()
+  if save_path: 
+    plt.savefig(f"{experiment['folder']}/{save_path}")
+    plt.close()
+  else:
+    plt.show()
 
 
 def bar_total_training_time(save_path=None):
@@ -186,8 +164,7 @@ def bar_total_training_time(save_path=None):
   Bar chart: total training time per experiment per platform
   """
   platforms = list(experiments[0]['metrics'].keys())
-  print(platforms)
-  
+    
   x = np.arange(len(experiments))
   width = 0.2
 
@@ -211,13 +188,36 @@ def bar_total_training_time(save_path=None):
   else:
     plt.show()
 
-plot_training_curves(experiments[0], 'training-curves.png')
-plot_epoch_time(experiments[0], 'training-times.png')
+if __name__ == '__main__':
+  experiments = [
+    { 'folder': './logs/experiment-1', 'name': 'Experiment 1', 'metrics': {} },
+    { 'folder': './logs/experiment-2', 'name': 'Experiment 2', 'metrics': {} },
+    { 'folder': './logs/experiment-3', 'name': 'Experiment 3', 'metrics': {} },
+  ]
 
-plot_training_curves(experiments[1], 'training-curves.png')
-plot_epoch_time(experiments[1], 'training-times.png')
+  for experiment in experiments:
+    (
+      pharo_train_metrics,
+      pharo_val_metrics,
+      vast_train_metrics,
+      vast_val_metrics,
+      python_train_metrics,
+      python_val_metrics
+    ) = parse_tensorboard_logs(experiment['folder'])
+    
+    experiment['metrics'] = {
+      'pharo' : { 'train': pharo_train_metrics, 'validation': pharo_val_metrics },
+      'vast' : { 'train': vast_train_metrics, 'validation': vast_val_metrics },
+      'python' : { 'train': python_train_metrics, 'validation': python_val_metrics },
+    }
 
-plot_training_curves(experiments[2], 'training-curves.png')
-plot_epoch_time(experiments[2], 'training-times.png')
+  plot_training_curves(experiments[0], 'training-curves.png')
+  plot_epoch_time(experiments[0], 'training-times.png')
 
-bar_total_training_time(save_path='total-training-time.png')
+  plot_training_curves(experiments[1], 'training-curves.png')
+  plot_epoch_time(experiments[1], 'training-times.png')
+
+  plot_training_curves(experiments[2], 'training-curves.png')
+  plot_epoch_time(experiments[2], 'training-times.png')
+
+  bar_total_training_time(save_path='total-training-time.png')
