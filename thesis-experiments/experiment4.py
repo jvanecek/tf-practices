@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Input
 from tensorflow.keras.optimizers import RMSprop
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 
@@ -18,7 +18,8 @@ x_test_cnn = x_test.reshape(-1, 28, 28, 1)
 
 # Define the model
 model_cnn = Sequential([
-    Conv2D(32, (3, 3), input_shape=(28, 28, 1)),
+    Input((28,28,1)),
+    Conv2D(32, (3, 3)),
     MaxPooling2D((2, 2)),
     Conv2D(64, (3, 3)),
     MaxPooling2D((2, 2)),
