@@ -1,6 +1,10 @@
 import unittest
 import numpy as np
 import tensorflow as tf
+import math 
+
+# Enable TensorFlow 1.x behavior
+tf.compat.v1.disable_eager_execution()
 
 class TestTensorflow(unittest.TestCase):
 
@@ -8,13 +12,13 @@ class TestTensorflow(unittest.TestCase):
         W = tf.constant([10,100], name='const_W')
         #these placeholders can hold tensors of any shape
         #we will feed these placeholders later
-        x = tf.placeholder(tf.int32, name='x')
-        b = tf.placeholder(tf.int32,name='b')
+        x = tf.compat.v1.placeholder(tf.int32, name='x')
+        b = tf.compat.v1.placeholder(tf.int32,name='b')
         #tf.multiply is simple multiplication and not matrix
         Wx = tf.multiply(W,x, name="Wx")
         y = tf.add(Wx,b,name='y')
  
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             '''all the code which require a session is writer here
             here Wx is the fetches parameter. fetches refers to the node of the graph we want to compute
             feed_dict is used to pass the values for the placeholders
@@ -24,7 +28,7 @@ class TestTensorflow(unittest.TestCase):
             
     def testFeedingPlaceholders(self):
         W = tf.Variable([2.5,4.0],tf.float32, name='var_W')
-        x = tf.placeholder(tf.float32, name='x')
+        x = tf.compat.v1.placeholder(tf.float32, name='x')
         b = tf.Variable([5.0,10.0],tf.float32, name='var_b')
         y = W * x + b
 
@@ -32,7 +36,7 @@ class TestTensorflow(unittest.TestCase):
         init = tf.compat.v1.global_variables_initializer()
         #global_variable_initializer() will declare all the variable we have initilized
         # use with statement to instantiate and assign a session
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             sess.run(init)
             #this computation is required to initialize the variable
             self.assertListEqual( sess.run(y,feed_dict={x:[10,100]}).tolist(),  [2.5*10+5,4*100+10] )
@@ -42,19 +46,19 @@ class TestTensorflow(unittest.TestCase):
         multiplier = tf.Variable(1)
         init = tf.compat.v1.global_variables_initializer()
         result = number.assign(tf.multiply(number,multiplier))
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             sess.run(init)
             for i in range(10):
-                self.assertEqual(sess.run(result), np.math.factorial(i+1)*2 )
+                self.assertEqual(sess.run(result), math.factorial(i+1)*2 )
                 self.assertEqual(sess.run(multiplier.assign_add(1)), i+2 )
 
     def testCreatingMultipleGraphs(self): 
         g1 = tf.Graph()
         '''set g1 as default to add tensors to this graph using default methord'''
         with g1.as_default():
-            with tf.Session() as sess:
+            with tf.compat.v1.Session() as sess:
                 A = tf.constant([5,7],tf.int32, name='A')
-                x = tf.placeholder(tf.int32, name='x')
+                x = tf.compat.v1.placeholder(tf.int32, name='x')
                 b = tf.constant([3,4],tf.int32, name='b')
                 y = A * x + b
                 self.assertListEqual( sess.run(y, feed_dict={x: [10,100]}).tolist(), [53, 704] )
@@ -63,18 +67,18 @@ class TestTensorflow(unittest.TestCase):
 
         g2 = tf.Graph()
         with g2.as_default():
-            with tf.Session() as sess:
+            with tf.compat.v1.Session() as sess:
                 A = tf.constant([5,7],tf.int32, name='A')
-                x = tf.placeholder(tf.int32, name='x')
+                x = tf.compat.v1.placeholder(tf.int32, name='x')
                 y = tf.pow(A,x,name='y')
                 self.assertListEqual( sess.run(y, feed_dict={x: [3,5]}).tolist(), [125, 16807] )
             self.assertEqual( y.graph, g2 ) 
 
         '''same way you can access defaut graph '''
         default_graph = tf.compat.v1.get_default_graph()
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             A = tf.constant([5,7],tf.int32, name='A')
-            x = tf.placeholder(tf.int32, name='x')
+            x = tf.compat.v1.placeholder(tf.int32, name='x')
             y = A + x
             self.assertListEqual(sess.run(y, feed_dict={x: [3,5]}).tolist(), [8,12])
         self.assertEqual( y.graph,  default_graph ) 
@@ -83,7 +87,7 @@ class TestTensorflow(unittest.TestCase):
     def testGradients(self):
         x = tf.ones((2, 2))
 
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             with tf.GradientTape() as t:
                 t.watch(x)
                 y = tf.reduce_sum(x)
@@ -110,7 +114,7 @@ class TestTensorflow(unittest.TestCase):
             dz_dx = t.gradient(z, x)  # 108.0 (4*x^3 at x = 3)
             dy_dx = t.gradient(y, x)  # 6.0
             
-            with tf.Session() as sess:
+            with tf.compat.v1.Session() as sess:
                 self.assertEqual( sess.run( dz_dx ), 108 )
                 self.assertEqual( sess.run( dy_dx ), 6 )
         
@@ -119,7 +123,7 @@ class TestTensorflow(unittest.TestCase):
 
     
     def testComputeMultipleGradientsOverSameComputationFeedingOperations(self): 
-        x = tf.placeholder(tf.float32, name='x')
+        x = tf.compat.v1.placeholder(tf.float32, name='x')
         
         def assertionTested(t):
             t.watch(x)
@@ -128,14 +132,14 @@ class TestTensorflow(unittest.TestCase):
             dz_dx = t.gradient(z, x)  # 108.0 (4*x^3 at x = 3)
             dy_dx = t.gradient(y, x)  # 6.0
             
-            with tf.Session() as sess:
+            with tf.compat.v1.Session() as sess:
                 self.assertEqual( sess.run( dz_dx, feed_dict={x: [3,]} ), 108 )
                 self.assertEqual( sess.run( dy_dx, feed_dict={x: [3,]} ), 6 )
         
         self._withPersistentTapeDo(assertionTested)
 
     def testGradientsAreUnavailableUsingPlaceholdersOfInt32(self): 
-        x = tf.placeholder(tf.int32, name='x')
+        x = tf.compat.v1.placeholder(tf.int32, name='x')
         
         with tf.GradientTape() as t:
             t.watch(x)
@@ -156,7 +160,7 @@ class TestTensorflow(unittest.TestCase):
             dy_dx = gg.gradient(y, x)     # Will compute to 6.0
         d2y_dx2 = g.gradient(dy_dx, x)  # Will compute to 2.0
 
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             self.assertEqual( sess.run( dy_dx ), 6.0)
             self.assertEqual( sess.run( d2y_dx2 ), 2.0)
     
@@ -169,7 +173,7 @@ class TestTensorflow(unittest.TestCase):
             dy_dx = t.gradient(y, x)
             d2y_dx2 = t.gradient(dy_dx, x)
 
-            with tf.Session() as sess:
+            with tf.compat.v1.Session() as sess:
                 self.assertEqual( sess.run( dy_dx ), 6.0)
                 self.assertEqual( sess.run( d2y_dx2 ), 2.0)
         
