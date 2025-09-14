@@ -2,9 +2,9 @@ from os import listdir
 from os.path import isfile, join
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import numpy as np 
 
 from google.protobuf.json_format import MessageToDict
-
 
 def find_first_file_in(experiment_filename, platform_name, stage_name):
   path = f'{experiment_filename}/{platform_name}/{stage_name}'
@@ -21,17 +21,17 @@ def event_tensor_value_decoder(event_value):
 
 def decode_event(record_bytes, metrics, value_decoder):
 
-    event = tf.compat.v1.Event.FromString(record_bytes.numpy())
-    if( 'summary' in MessageToDict(event).keys() ):
+  event = tf.compat.v1.Event.FromString(record_bytes.numpy())
+  if( 'summary' in MessageToDict(event).keys() ):
 
-      event_value = event.summary.value[0]
-      if( event_value.tag in metrics.keys() ):
+    event_value = event.summary.value[0]
+    if( event_value.tag in metrics.keys() ):
 
-        if( event_value.tag == 'epoch_loss'):
-          metrics['wall_time'].append( event.wall_time )
-          metrics['time'].append( event.wall_time - metrics['wall_time'][0] )
+      if( event_value.tag == 'epoch_loss'):
+        metrics['wall_time'].append( event.wall_time )
+        metrics['time'].append( event.wall_time - metrics['wall_time'][0] )
 
-        metrics[event_value.tag].append( value_decoder(event_value) )
+      metrics[event_value.tag].append( value_decoder(event_value) )
 
 
 def parse_record_file(file_name, value_decoder):
@@ -49,91 +49,175 @@ def parse_record_file(file_name, value_decoder):
 
   return parsed_metrics
 
-def same_stage_plot(metrics_collected, metric_names, metric_labels, stage_name, save_path):
-
-    markers = {
-        'pharo' : 'x',
-        'vast' : '+',
-        'python' : 'o'
-    }
-    epochs = 10
-    figure_size = (6, 6) if len(metric_names) < 2 else (12, 6)
-    columns_of_figures = 1 if len(metric_names) < 2 else 2
-    rows_in_figure = 1
-    plt.figure(figsize=figure_size)
-
-    x_values = range(0, epochs)
-
-    for metric_name in metric_names:
-        metric_idx = metric_names.index(metric_name)
-        metric_label = metric_labels[metric_idx]
-        plt.subplot(rows_in_figure, columns_of_figures, metric_idx + 1)  # Create subplots side by side
-        for platform in metrics_collected.keys():
-            plt.plot(x_values, metrics_collected[platform][metric_name], label=platform, marker=markers[platform])
-
-        plt.xlabel('epoch')
-        plt.ylabel(metric_label)
-        plt.title(f'{metric_label} during {stage_name}')
-        plt.legend()
-        plt.grid(True)
-
-    plt.tight_layout()  # Adjust spacing between subplots
-    # Save the figure instead of showing it
-    plt.savefig(save_path)
-    plt.close()
-
-
 def parse_tensorboard_logs(logs_path):
-    def _parse_record_file(logs_path, platform, stage, value_decoder):
-        full_path = find_first_file_in(logs_path, platform,  stage)
-        return parse_record_file(full_path, value_decoder)
+  def _parse_record_file(logs_path, platform, stage, value_decoder):
+    full_path = find_first_file_in(logs_path, platform,  stage)
+    return parse_record_file(full_path, value_decoder)
 
-    return (
-        _parse_record_file(logs_path, 'pharo',  'train',      event_simple_value_decoder),
-        _parse_record_file(logs_path, 'pharo',  'validation', event_simple_value_decoder),
-        _parse_record_file(logs_path, 'vast',   'train',      event_simple_value_decoder),
-        _parse_record_file(logs_path, 'vast',   'validation', event_simple_value_decoder),
-        _parse_record_file(logs_path, 'python', 'train',      event_tensor_value_decoder),
-        _parse_record_file(logs_path, 'python', 'validation', event_tensor_value_decoder)
-    )
+  return (
+    _parse_record_file(logs_path, 'pharo',  'train',      event_simple_value_decoder),
+    _parse_record_file(logs_path, 'pharo',  'validation', event_simple_value_decoder),
+    _parse_record_file(logs_path, 'vast',   'train',      event_simple_value_decoder),
+    _parse_record_file(logs_path, 'vast',   'validation', event_simple_value_decoder),
+    _parse_record_file(logs_path, 'python', 'train',      event_tensor_value_decoder),
+    _parse_record_file(logs_path, 'python', 'validation', event_tensor_value_decoder)
+  )
 
+experiments = [
+  { 'folder': './logs/2024-10-03-experiment1',  'name': 'Experiment 1', 'metrics': {} },
+  { 'folder': './logs/2024-08-25-experiment-2', 'name': 'Experiment 2', 'metrics': {} },
+  { 'folder': './logs/2024-06-11-experiment-3', 'name': 'Experiment 3', 'metrics': {} },
+]
 
-experimentsPath = './logs/experiment2'
-
-(
+for experiment in experiments:
+  (
     pharo_train_metrics,
     pharo_val_metrics,
     vast_train_metrics,
     vast_val_metrics,
     python_train_metrics,
     python_val_metrics
-) = parse_tensorboard_logs(experimentsPath)
+  ) = parse_tensorboard_logs(experiment['folder'])
+  
+  experiment['metrics'] = {
+    'pharo' : { 'train': pharo_train_metrics, 'validation': pharo_val_metrics },
+    'vast' : { 'train': vast_train_metrics, 'validation': vast_val_metrics },
+    'python' : { 'train': python_train_metrics, 'validation': python_val_metrics },
+  }
+
+markers = {
+  'pharo': 'x',
+  'vast': '+',
+  'python': 'o'
+}
+
+def plot_training_curves(experiment, save_path=None):
+  """
+  Line plots: Loss and Accuracy side by side
+  Solid line = training, dashed line = validation
+  One shared legend for both charts
+  """
+  fig, axes = plt.subplots(1, 2, figsize=(12, 6), sharex=True)
+
+  color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
+  platform_colors = {platform: color_cycle[i % len(color_cycle)]
+                      for i, platform in enumerate(experiment['metrics'].keys())}
+
+  metric_names = ["epoch_loss", "epoch_sparse_categorical_accuracy"]
+  labels = ["Loss", "Accuracy"]
+
+  handles, legend_labels = None, None
+
+  for ax, metric_name, label in zip(axes, metric_names, labels):
+    for platform, data in experiment['metrics'].items():
+      train_values = data["train"][metric_name]
+      val_values = data["validation"][metric_name]
+      epochs = np.arange(1, len(train_values) + 1)
+
+      color = platform_colors[platform]
+      marker = markers.get(platform, None)
+
+      ax.plot(
+        epochs, train_values,
+        linestyle="-", marker=marker, color=color,
+        label=f"{platform} - train"
+      )
+      ax.plot(
+        epochs, val_values,
+        linestyle="--", marker=marker, color=color,
+        label=f"{platform} - val"
+      )
+
+    ax.set_title(label)
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel(label)
+    ax.grid(True, linestyle="--", alpha=0.7)
+
+    # Capture legend handles only once (from the first subplot)
+    if handles is None:
+      handles, legend_labels = ax.get_legend_handles_labels()
+
+  fig.legend(handles, legend_labels, loc="upper center", ncol=3, bbox_to_anchor=(0.5, 1))
+  plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+  if save_path:
+    fig.savefig(f"{experiment['folder']}/{save_path}")
+    plt.close(fig)
+  else:
+    plt.show()
+
+def plot_epoch_time(experiment, save_path=None):
+  """
+  Line plot: epoch duration (time per epoch)
+  """
+  plt.figure(figsize=(8, 5))
+
+  color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
+  platform_colors = {platform: color_cycle[i % len(color_cycle)]
+                      for i, platform in enumerate(experiment['metrics'].keys())}
+
+  for platform, data in experiment['metrics'].items():
+    times = data["train"]["time"]  # duration per epoch
+    epochs = np.arange(1, len(times) + 1)
+
+    plt.plot(
+      epochs, times,
+      linestyle="-", marker=markers.get(platform, None),
+      color=platform_colors[platform],
+      label=f"{platform}"
+    )
+
+    plt.title(f"{experiment['name']} - Epoch duration")
+    plt.xlabel("Epoch")
+    plt.ylabel("Seconds")
+    plt.legend()
+    plt.grid(True, linestyle="--", alpha=0.7)
+
+    plt.tight_layout()
+    if save_path: 
+      plt.savefig(f"{experiment['folder']}/{save_path}")
+      plt.close()
+    else:
+      plt.show()
 
 
-same_stage_plot(
-    metrics_collected={ 'pharo' : pharo_train_metrics, 'python' : python_train_metrics, 'vast' : vast_train_metrics },
-    metric_names=['epoch_loss', 'epoch_sparse_categorical_accuracy'],
-    metric_labels=['loss', 'accuracy'],
-    stage_name='training',
-    save_path=experimentsPath+'/training-metrics.png')
+def bar_total_training_time(save_path=None):
+  """
+  Bar chart: total training time per experiment per platform
+  """
+  platforms = list(experiments[0]['metrics'].keys())
+  print(platforms)
+  
+  x = np.arange(len(experiments))
+  width = 0.2
 
-same_stage_plot(
-    metrics_collected={ 'pharo' : pharo_train_metrics, 'python' : python_train_metrics, 'vast' : vast_train_metrics },
-    metric_names=['time'],
-    metric_labels=['time (in secs)'],
-    stage_name='training',
-    save_path=experimentsPath+'/training-time.png')
+  plt.figure(figsize=(8, 5))
+  for i, platform in enumerate(platforms):
+    vals = []
+    for exp in experiments:
+      vals.append(sum(exp['metrics'][platform]["train"]["time"]))
+    plt.bar(x + i * width, vals, width, label=platform)
 
-same_stage_plot(
-    metrics_collected={ 'pharo' : pharo_val_metrics, 'python' : python_val_metrics, 'vast' : vast_val_metrics },
-    metric_names=['epoch_loss', 'epoch_sparse_categorical_accuracy'],
-    metric_labels=['loss', 'accuracy'],
-    stage_name='validation',
-    save_path=experimentsPath+'/validation-metrics.png')
+  plt.title("Total training time per experiment")
+  plt.ylabel("Total time (s)")
+  plt.xticks(x + width, [ exp['name'] for exp in experiments ])
+  plt.legend()
+  plt.grid(axis="y", linestyle="--", alpha=0.7)
+  
+  plt.tight_layout()
+  if save_path: 
+    plt.savefig(save_path)
+    plt.close()
+  else:
+    plt.show()
 
-same_stage_plot(
-    metrics_collected={ 'pharo' : pharo_val_metrics, 'python' : python_val_metrics, 'vast' : vast_val_metrics },
-    metric_names=['time'],
-    metric_labels=['time (in secs)'],
-    stage_name='validation',
-    save_path=experimentsPath+'/validation-time.png')
+plot_training_curves(experiments[0], 'training-curves.png')
+plot_epoch_time(experiments[0], 'training-times.png')
+
+plot_training_curves(experiments[1], 'training-curves.png')
+plot_epoch_time(experiments[1], 'training-times.png')
+
+plot_training_curves(experiments[2], 'training-curves.png')
+plot_epoch_time(experiments[2], 'training-times.png')
+
+bar_total_training_time(save_path='total-training-time.png')

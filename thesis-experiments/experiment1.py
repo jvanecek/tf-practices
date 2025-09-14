@@ -20,7 +20,7 @@ model.compile(optimizer=RMSprop(learning_rate=0.001),
               loss=SparseCategoricalCrossentropy(from_logits=True),
               metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
 
-log_dir = "logs/experiment1/python"
+log_dir = "logs/experiment-1/python"
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1, write_steps_per_second=True)
 
 history = model.fit(
