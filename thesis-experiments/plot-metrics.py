@@ -172,7 +172,7 @@ def bar_total_training_time(save_path=None):
   for i, platform in enumerate(platforms):
     vals = []
     for exp in experiments:
-      vals.append(sum(exp['metrics'][platform]["train"]["time"]))
+      vals.append(exp['metrics'][platform]["train"]["time"][-1])
     plt.bar(x + i * width, vals, width, label=platform)
 
   plt.title("Total training time per experiment")
